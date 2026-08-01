@@ -7,7 +7,7 @@ daily: **is the options market disagreeing with me about a business I own?**
 
 Built and run live for the Alpha with AI proof-of-work edition. Every dated
 report in `outputs/` is a real run from the build, wrong turns included.
-Read the full piece here: ([https://ai.shikshannivesh.com/p/is-big-techs-ai-capex-mispriced-i](https://ai.shikshannivesh.com/p/i-do-not-trade-options-so-i-taught)
+Read the full piece here: (https://ai.shikshannivesh.com/p/i-do-not-trade-options-so-i-taught)
 
 
 ## What is here
