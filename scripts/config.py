@@ -41,13 +41,18 @@ SNAP_MIN_VOLUME = 25
 SNAP_MIN_OI = 100
 KEEP_ALL = {"SOLS"}  # thin chains keep every contract
 
-# Scan thresholds (independent design — rationale in repo process/methodology.md)
-NEWPOS_VOLOI_RATIO = 2.5      # volume >= 2.5x max(OI,1) => opening, not managing
+# Scan thresholds (rationale in process/methodology.md)
+NEWPOS_VOLOI_RATIO = 2.5      # volume >= 2.5x max(OI,1) => unusual activity against open contracts
 NEWPOS_MIN_VOL = 250          # liquid names: minimum contracts traded
-NEWPOS_MIN_PREMIUM = 200_000  # liquid names: volume * last * 100 floor ($)
+NEWPOS_MIN_PREMIUM = 200_000  # liquid names: volume * bid-ask midpoint * 100 floor ($)
 THIN_MIN_VOL = 50             # thin chains
 THIN_MIN_PREMIUM = 50_000     # thin chains
-NEAR_EXPIRY_DTE = 3           # <=3 DTE flagged as likely roll/expiry mechanics
+NEAR_EXPIRY_DTE = 3           # <=3 DTE tagged as likely roll/expiry mechanics
+
+# v2 data-quality and context tags (rationale in process/methodology.md)
+WIDE_SPREAD_PCT = 0.25        # bid-ask spread above 25% of the midpoint = WIDE_MARKET
+MULTI_LEG_VOL_TOLERANCE = 0.05  # another series within 5% of the same volume = probable multi-leg
+EARNINGS_WINDOW_DAYS = 10     # tag, never discard, anything within 10 days of earnings
 
 
 def curl_json(url, ua=None):

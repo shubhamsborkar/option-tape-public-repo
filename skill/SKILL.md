@@ -1,37 +1,39 @@
 ---
 name: options-tape
 description: >-
-  Run the options-tape disagreement detector: does the US options market
-  disagree with the long-term thesis on names you own or cover? Takes a
-  daily chain snapshot (free CBOE delayed data), scans for positioning
-  anomalies (new-position volume, multi-day OI builds, put/call skew shifts),
+  Run the options tape: surface persistent series-level positioning anomalies
+  in US options on names you own or cover. Takes a daily chain snapshot (free
+  Cboe delayed data), scans for unusual volume and open-interest builds with
+  data-quality flags and context tags, logs every flag to a ledger,
   cross-references EDGAR Form 4 insider filings and House congressional PTRs,
-  scores divergence, and writes a dated disagreement report. Use when the user says "run the tape," "options tape," "tape scan," "disagreement report,"
-  "options screener," or asks whether the options market is saying something
-  about his names. Also for snapshot-only runs ("take today's snapshot"). NOT
-  for: trade recommendations, single-stock selloff triage (stock-selloff-triage),
-  or post-earnings behavior reads (calendar-tell).
+  and writes a dated positioning report. Use when the user says "run the
+  tape," "options tape," "tape scan," "positioning report," "options
+  screener," or asks whether anything unusual is happening in the options on
+  their names. Also for snapshot-only runs ("take today's snapshot") and for
+  "evaluate the tape." NOT for: trade recommendations, single-stock selloff
+  triage (stock-selloff-triage), or post-earnings behavior reads
+  (calendar-tell).
 ---
 
-# Options Tape — the disagreement detector
+# Options tape
 
-## What this is (and is not)
+## What this is and is not
 
-A thesis-surveillance instrument for a long-term quality investor. The question
-is always: **"is the options market disagreeing with me about a business I own
-or cover?"** It is NEVER a trade-idea generator. No output may recommend
-buying, selling, or holding anything — flagged names are presented as what the
-machine surfaced and what to investigate, full stop.
+A research prompt for a long-term investor. It surfaces **persistent series-level positioning anomalies**: contracts where activity or open interest is unusual against their own history. It is never a trade-idea generator, and it never says what "the options market thinks". No output may recommend buying, selling or holding anything.
 
-## Vocabulary law (house rules — applies to every output)
+## What the data cannot say (applies to every sentence written)
 
-- Say "divergence score," "disagreement report," "flagged for investigation."
-- NEVER: "plays," "conviction score," "golden sweep," ranked buy lists,
-  "smart money says buy," or any directive to act.
-- Frame insider/congressional data as "public disclosure data as a positioning
-  signal" — never as profiting from non-public information.
+- Volume is gross activity; open interest is a net count. Unchanged open interest does not prove day trading, because one participant can close while another opens. Rising open interest confirms more contracts are open, and says nothing about who opened them or which side they hold.
+- Put volume is not bearish and call volume is not bullish by default. Sold puts, covered calls, verticals, calendars, collars, rolls and conversions leave similar end-of-day footprints.
+- Never write "someone kept the position", "the volume converted", "the candidate died", "bearish bet", "bullish bet", "smart money" or "the options market disagrees". Describe what the numbers show: "open interest in the October 170 put rose from 14 to 2,168 contracts over three sessions."
 
-## Step 1 — Run the deterministic layer (all four scripts)
+## Vocabulary
+
+- Say "positioning anomaly", "positioning report", "flagged for research".
+- Never: "plays", "conviction", "golden sweep", ranked buy lists, or any directive to act.
+- Insider and congressional data are public disclosures, used as context, never as confirmation of a direction.
+
+## Step 1: run the deterministic layer
 
 ```bash
 python3 scripts/take_snapshot.py
@@ -40,108 +42,48 @@ python3 scripts/fetch_form4.py
 python3 scripts/fetch_ptrs.py
 ```
 
-Timing rule: the snapshot is stamped with the TRADING date from the CBOE API
-timestamp. A run while the US market is open captures partial-day volume and
-will be overwritten by a later run the same day — the definitive snapshot is
-after the US close. Intraday runs are fine for a look, but say in the report
-which kind it is.
+The snapshot is stamped with the trading date of the data. A run while the US market is open captures partial volume and is overwritten by a later run; the definitive snapshot is after the close. Say in the report which kind it is.
 
-Outputs land in `workspace/`:
-`scan_candidates.md`, `form4_recent.md`, `ptr_matches.md`.
+Outputs: `workspace/scan_candidates.md`, `workspace/form4_recent.md`, `workspace/ptr_matches.md`, and new rows in `data/flag-ledger.csv`.
 
-## Step 2 — Judgment layer: exclusions first
+## Step 2: keep data/events.csv current
 
-For each NEW-POSITION candidate and OI BUILD in `scan_candidates.md`, work
-through the false-positive ladder before treating it as signal:
+For every name with a candidate, check that `data/events.csv` has its next earnings date, any ex-dividend date in the next two weeks, and any corporate action, index rebalance or hard-to-borrow condition. Add missing rows as `ticker,date,event,source`, with `event` one of `earnings`, `ex_dividend`, `corporate_action`, `index_rebalance`, `hard_to_borrow`, and `source` naming where the date came from (the company's investor relations page, the exchange, the index provider). Never guess a date. If you added rows, re-run `scan.py` so the tags pick them up.
 
-1. **Near-expiry mechanics:** DTE <= 3 (ROLL_RISK flag) — almost always rolls
-   or expiry gamma, discard unless extraordinary.
-2. **Earnings hedging:** check the name's next earnings date (web search;
-   verify on the company's IR page). Anomalous volume within ~10 days of
-   earnings at near-dated expiries is presumptively hedging, not information.
-3. **Two-sided volume:** matching call AND put volume at the same expiry ≈
-   straddle/volatility trade, not directional.
-4. **Deep-ITM volume ≈ OI:** likely rolls or dividend/assignment mechanics.
-5. **Index/macro days:** if the whole universe lights up the same direction on
-   the same day, that is market-wide repricing, not a name-specific signal.
+## Step 3: read the tags, do not discard
 
-Known EOD data limits (state them in every report, never work around them by
-guessing): delayed EOD data cannot show buyer- vs seller-initiated trades or
-sweeps; direction is inferred only weakly (put OI accumulating = someone
-paying for downside exposure — investigate, don't conclude).
+Every candidate carries data-quality flags and context tags (full list in `process/methodology.md`). Read them before writing anything:
 
-## Step 3 — Cross-reference survivors
+- A candidate with `STALE_LAST`, `LAST_OUTSIDE_QUOTE`, `WIDE_MARKET` or `NO_QUOTE` has an unreliable premium estimate. Say so.
+- `NEAR_EXPIRY`, `OPEX_WEEK`, `DEEP_ITM`, `PROBABLE_MULTI_LEG`, `ADJUSTED_CONTRACT`, `EX_DIVIDEND` and `HARD_TO_BORROW` point to mechanics that often explain the footprint. Name the likely mechanic.
+- `EARNINGS(±Nd)` is context, not a reason to drop the flag.
+- A candidate is **clean** when it has no quality flag, more than 7 days to expiry, and none of the mechanics tags above. Clean candidates get the fuller write-up.
 
-Only for names that survive exclusions:
+## Step 4: cross-reference clean candidates
 
-- **Insiders:** open the Form 4 doc URLs for that name (`form4_recent.md`).
-  Read direction (P/S), size, price, and the 10b5-1 checkbox
-  (`aff10b5One`). Discretionary (non-10b5-1) trades matter; scheduled-plan
-  sales are near-noise. Note the accession number for every filing cited.
-- **Congress:** check `ptr_matches.md` for the name; read the PTR PDF for the
-  actual transaction (ticker, buy/sell, size band, TRANSACTION date vs filing
-  date). Always caveat the lag (up to 45 days) and that v1 is House-only.
-- If an unparseable (scanned) PTR could matter for a flagged name, Read the
-  PDF visually.
+- **Insiders:** open the Form 4s for that name (`form4_recent.md`). Read direction, size, price and the 10b5-1 checkbox. Note the accession number for every filing cited.
+- **Congress:** check `ptr_matches.md`; read the PTR for ticker, buy or sell, size band, and transaction date against filing date. State the lag (up to 45 days) and that coverage is House only.
 
-## Step 4 — Divergence score (0-10, evidence itemized every time)
+## Step 5: write the positioning report
 
-- +2 persistent OI build, >= 3 consecutive snapshots, on directional
-  (OTM) strikes
-- +1 any surviving new-position candidate (premium proxy >= $200k, >= $50k
-  thin); +2 instead if premium proxy >= $1M (>= $250k on thin chains)
-- +1 cluster: multiple same-direction candidates on the name the same day
-- +2 discretionary insider Form 4 in the same direction within 30 days
-- +1 insider cluster (>= 2 distinct insiders, same direction, 30 days)
-- +1 congressional trade same direction within 60 days (max 1 point — lagged,
-  coarse data)
-- +2 repeat: name was flagged on a prior scan (check `data/scan-log.md`)
-- −2 earnings within 10 calendar days
-- −1 near-expiry candidate carrying the signal
-- −1 two-sided volume signature
+Path: `outputs/YYYY-MM-DD-positioning-report.md` (trading date).
 
-Bands: **>= 5 disagreement item** (full write-up), **3-4 watch note**,
-**< 3 logged only**. Never present the score without its component breakdown.
+1. Header: scan date, close or intraday, snapshot count, and the standing limits block (delayed end-of-day data; no trade direction; premium figures are estimates; House-only congress with lag).
+2. Tier 1 names first, each with a status line even when nothing is flagged.
+3. Clean candidates: the numbers, the tags, the likely explanations including mechanics, cross-references with accession numbers or PTR IDs, and what to check next. No score, no direction.
+4. Tagged candidates: one line each, with the tag that most likely explains them.
+5. Every figure traces to a snapshot file, an EDGAR accession number or a PTR ID.
 
-## Report language law (keep every report readable)
+Write it so a new investor can follow it: the plain description first ("a put on Oracle at 115 expiring 31 July"), the contract shorthand after. Gloss open interest, premium and similar terms at first use.
 
-Write every report so a newbie investor could follow it. The rigor stays in the
-numbers; the sentences get plain:
-- Describe positions as what they are: "a bet that Oracle falls below 115 by
-  July 31" beats "Jul-31 115P". Give the plain description first, the contract
-  shorthand after it in parentheses.
-- Gloss any term of art at first use in each report (open interest = contracts
-  still held; conversion = the volume became positions somebody kept; premium
-  proxy = rough dollars at stake).
-- Short sentences. One idea per sentence. No desk shorthand ("two-sided tape",
-  "harvested", "prints") without a plain-English companion.
-- Keep the tables precise and dense; let the prose around them be the simple
-  layer. The report is a note to a smart friend who has never traded options.
+Then append one line to `data/scan-log.md`: `| date | close-or-intraday | snapshots | clean candidates | notes |`. Log every run, quiet ones included.
 
-## Step 5 — Write the disagreement report
+## Evaluate (on request: "evaluate the tape")
 
-Path: `outputs/YYYY-MM-DD-disagreement-report.md` (trading date). Structure:
-
-1. Header: scan date, intraday-or-close, snapshot count, standing data-limits
-   block (delayed EOD; no trade-direction; House-only congress with lag).
-2. **Tier 1 names first (ACN, SOLS, LULU, ORCL) — every one gets a status
-   line even when quiet.** Quiet is a finding: the tape agrees with the
-   thesis today.
-3. Disagreement items and watch notes: evidence tables, cross-references with
-   accession numbers / PTR DocIDs, itemized score, and "what to verify next."
-4. Every figure in the report traces to the snapshot file, an EDGAR accession
-   number, or a PTR DocID. No figure from memory.
-
-Then append one line to `data/scan-log.md`:
-`| date | close-or-intraday | snapshots | flagged (score) | watch notes |`
-— this log is the backtest dataset; never skip it, even for quiet scans.
+Run `python3 scripts/evaluate.py` and report its table as printed. The rule is in `process/evaluation-plan.md` and is never changed after results are seen. Below the minimum sample it says INSUFFICIENT DATA, and nothing more may be claimed.
 
 ## Standing honesty rules
 
-- Scoring is an untested hypothesis until backtested against the scan log.
-  Say so whenever a score appears in anything public-facing.
-- Never cherry-pick: the scan log records every run, including the boring ones.
-- Thin chains make anomalies stand out more, but the absolute numbers are
-  small; size the language accordingly.
-- This skill's outputs are research notes for your own process, not
-  publishable advice. Nothing it writes is a recommendation to anyone.
+- Never cherry-pick: the ledger and the scan log record everything.
+- Thin chains make anomalies stand out, but the absolute numbers are small; size the language to match.
+- Outputs are research notes for your own process, not advice to anyone.
