@@ -1,10 +1,27 @@
 # Options tape for long-term investors
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: light)" srcset="assets/options-tape-readme-light.png">
+    <img src="assets/options-tape-readme-dark.png" alt="Options tape. Unusual options positioning on the stocks you own, from free end-of-day data." width="100%">
+  </picture>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/version-v2-ED5A24?style=flat-square" alt="Version 2">
+  <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.10%2B-3776AB?style=flat-square" alt="Python 3.10 or newer"></a>
+  <img src="https://img.shields.io/badge/data-Cboe%20delayed%20%C2%B7%20SEC%20EDGAR%20%C2%B7%20House%20PTRs-ECEBE6?style=flat-square&labelColor=0F1114" alt="Data: Cboe delayed quotes, SEC EDGAR, House PTRs">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/licence-MIT-3ECF8E?style=flat-square" alt="Licence: MIT"></a>
+  <a href="https://ai.shikshannivesh.com"><img src="https://img.shields.io/badge/newsletter-Alpha%20with%20AI-ED5A24?style=flat-square" alt="Alpha with AI on Substack"></a>
+</p>
+
+[The edition](https://ai.shikshannivesh.com/p/i-do-not-trade-options-so-i-taught) · [Methodology](process/methodology.md) · [Evaluation plan](process/evaluation-plan.md) · [The skill](skill/SKILL.md) · [What changed in v2](#what-changed-in-v2-2026-09-23) · [GreekSoup](https://github.com/shubhamsborkar/greeksoup) · [Newsletter](https://ai.shikshannivesh.com)
+
 A Claude Code workflow that reads US options positioning (free Cboe delayed data), insider Form 4 filings (SEC EDGAR) and House congressional trade disclosures for the names you own or follow, and surfaces **persistent series-level positioning anomalies**: option contracts where activity or open interest looks unusual against their own history.
 
 It is a research prompt. It does not tell you what the options market thinks, and it never assigns a direction to a trade, because free end-of-day data cannot show who traded or which side they took. The limits are written out in `process/methodology.md`.
 
-It was built and run live for an Alpha with AI edition: https://ai.shikshannivesh.com/p/i-do-not-trade-options-so-i-taught
+It was built and run live for an [Alpha with AI edition](https://ai.shikshannivesh.com/p/i-do-not-trade-options-so-i-taught).
 
 ## What changed in v2 (2026-09-23)
 
